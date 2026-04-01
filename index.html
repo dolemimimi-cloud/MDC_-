@@ -443,20 +443,27 @@
                                             );
                                         })}
 
-                                        {/* 대기 신청 항목 */}
-                                        <label className={`flex items-center justify-between p-3 border-2 rounded-lg cursor-pointer transition-colors ${addWaitlist?'border-blue-400 bg-blue-50':'border-gray-300 hover:bg-gray-50'}`}
-                                            onClick={()=>setShowWaitlistModal(true)}>
-                                            <div className="flex items-center gap-3">
-                                                <input type="checkbox" checked={!!addWaitlist} readOnly className="w-4 h-4"/>
-                                                <div>
-                                                    <div className="font-medium text-gray-900">⏳ 대기 신청</div>
-                                                    {addWaitlist
-                                                        ? <div className="text-sm text-blue-600 font-medium">{addWaitlist}</div>
-                                                        : <div className="text-sm text-gray-500">클릭하면 마감 과정에서 선택할 수 있어요</div>
-                                                    }
+                                                        {/* 대기 신청 항목 */}
+                                        {(() => {
+                                            const alreadyHasWaitlist = !!formData.currentWaitlist;
+                                            return (
+                                                <div className={`flex items-center justify-between p-3 border-2 rounded-lg transition-colors ${alreadyHasWaitlist ? 'border-gray-200 bg-gray-50 cursor-not-allowed opacity-60' : addWaitlist ? 'border-blue-400 bg-blue-50 cursor-pointer' : 'border-gray-300 hover:bg-gray-50 cursor-pointer'}`}
+                                                    onClick={()=>!alreadyHasWaitlist && setShowWaitlistModal(true)}>
+                                                    <div className="flex items-center gap-3">
+                                                        <input type="checkbox" checked={!!addWaitlist} readOnly disabled={alreadyHasWaitlist} className="w-4 h-4"/>
+                                                        <div>
+                                                            <div className="font-medium text-gray-900">⏳ 대기 신청</div>
+                                                            {alreadyHasWaitlist
+                                                                ? <div className="text-sm text-gray-400">대기 신청은 최대 1개까지 가능합니다</div>
+                                                                : addWaitlist
+                                                                    ? <div className="text-sm text-blue-600 font-medium">{addWaitlist}</div>
+                                                                    : <div className="text-sm text-gray-500">클릭하면 마감 과정에서 선택할 수 있어요</div>
+                                                            }
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        </label>
+                                            );
+                                        })()}
 
                                         {getAddableCourses().length === 0 && !getFullCourses().length && (
                                             <p className="text-center text-gray-500 py-4">추가 신청 가능한 과정이 없습니다.</p>
