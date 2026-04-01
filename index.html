@@ -313,9 +313,9 @@
                                     <h3 className="text-xl font-bold mb-4" style={{color:'#4E5FEE'}}>⏳ 대기 신청</h3>
                                     <p className="text-sm text-gray-600 mb-4">대기 신청할 과정을 선택하세요 (1개만 가능)</p>
                                     <div className="space-y-2 max-h-96 overflow-y-auto">
-                                        {getFullCourses().length === 0
+                                        {getFullCourses().filter(c => c.name !== formData.currentWaitlist).length === 0
                                             ? <p className="text-center text-gray-500 py-4">현재 마감된 과정이 없습니다.</p>
-                                            : getFullCourses().map(c=>(
+                                            : getFullCourses().filter(c => c.name !== formData.currentWaitlist).map(c=>(
                                                 <label key={c.id} className={`flex items-center gap-3 p-3 border-2 rounded-lg cursor-pointer ${addWaitlist===c.name?'border-blue-400 bg-blue-50':'border-gray-300 hover:bg-gray-50'}`}>
                                                     <input type="radio" name="waitlist" checked={addWaitlist===c.name} onChange={()=>setAddWaitlist(c.name)} className="w-4 h-4"/>
                                                     <div>
