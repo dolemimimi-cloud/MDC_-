@@ -16,24 +16,18 @@
     <div id="root"></div>
     <script type="text/babel">
         const { useState } = React;
-
         const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbweOUQKh3y8mMdkJfPWyzoGz4S3LWzv9ohjGowjyuZzbvH6NW7S_VnuIwXi3g-_VXO4/exec';
 
-        const Calendar = () => (
+        const CalendarIcon = () => (
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                <line x1="16" y1="2" x2="16" y2="6"></line>
-                <line x1="8" y1="2" x2="8" y2="6"></line>
-                <line x1="3" y1="10" x2="21" y2="10"></line>
+                <line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line>
             </svg>
         );
-
-        const Users = () => (
+        const UsersIcon = () => (
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                <circle cx="9" cy="7" r="4"></circle>
-                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
             </svg>
         );
 
@@ -51,47 +45,59 @@
             const [userList, setUserList] = useState([]);
             const [showDropdown, setShowDropdown] = useState(false);
             const [filteredUsers, setFilteredUsers] = useState([]);
+
+            // 원본 데이터 (비교용)
+            const [originalData, setOriginalData] = useState({ courses: [], waitlist: '' });
+
+            // 현재 편집 상태
             const [formData, setFormData] = useState({ name: '', department: '', email: '', currentCourses: [], currentWaitlist: '' });
+
+            // 추가 신청 상태
+            const [addCourses, setAddCourses] = useState([]);
+            const [addWaitlist, setAddWaitlist] = useState('');
+            const [showWaitlistModal, setShowWaitlistModal] = useState(false);
+
+            // 변경 모달
             const [showModifyModal, setShowModifyModal] = useState(false);
             const [modifyingCourse, setModifyingCourse] = useState(null);
+
+            // 완료 모달
             const [showSuccessModal, setShowSuccessModal] = useState(false);
-            const [successMessage, setSuccessMessage] = useState('');
             const [loading, setLoading] = useState(false);
 
             React.useEffect(() => {
-                loadData();
-                loadUserList();
+                loadData(); loadUserList();
                 const interval = setInterval(loadData, 5000);
                 return () => clearInterval(interval);
             }, []);
 
             const loadData = () => {
-                try {
-                    const cb = 'jsonpCb' + Date.now();
-                    const s = document.createElement('script');
-                    window[cb] = (data) => { if (data.registrations) setRegistrations(data.registrations); document.body.removeChild(s); delete window[cb]; };
-                    s.src = `${GOOGLE_SCRIPT_URL}?callback=${cb}&_=${Date.now()}`;
-                    document.body.appendChild(s);
-                } catch(e) {}
+                const cb = 'jsonpCb' + Date.now();
+                const s = document.createElement('script');
+                window[cb] = (data) => { if (data.registrations) setRegistrations(data.registrations); document.body.removeChild(s); delete window[cb]; };
+                s.src = `${GOOGLE_SCRIPT_URL}?callback=${cb}&_=${Date.now()}`;
+                document.body.appendChild(s);
             };
 
             const loadUserList = () => {
-                try {
-                    const cb = 'userCb' + Date.now();
-                    const s = document.createElement('script');
-                    window[cb] = (data) => { if (data.userList) setUserList(data.userList); document.body.removeChild(s); delete window[cb]; };
-                    s.src = `${GOOGLE_SCRIPT_URL}?callback=${cb}&type=userList&_=${Date.now()}`;
-                    document.body.appendChild(s);
-                } catch(e) {}
+                const cb = 'userCb' + Date.now();
+                const s = document.createElement('script');
+                window[cb] = (data) => { if (data.userList) setUserList(data.userList); document.body.removeChild(s); delete window[cb]; };
+                s.src = `${GOOGLE_SCRIPT_URL}?callback=${cb}&type=userList&_=${Date.now()}`;
+                document.body.appendChild(s);
             };
 
             const getCount = (courseId) => {
                 const course = courses.find(c => c.id === courseId);
-                return registrations.filter(r => r.course && (r.course.includes(',') ? r.course.split(',').map(c=>c.trim()).includes(course.name) : r.course === course.name)).length;
+                return registrations.filter(r => r.course && (
+                    r.course.includes(',') ? r.course.split(',').map(c=>c.trim()).includes(course.name) : r.course === course.name
+                )).length;
             };
 
             const handleNameInput = (value) => {
                 setFormData({ name: value, department: '', email: '', currentCourses: [], currentWaitlist: '' });
+                setOriginalData({ courses: [], waitlist: '' });
+                setAddCourses([]); setAddWaitlist('');
                 if (value.length > 0) {
                     const f = userList.filter(u => u.name.includes(value) || u.department.includes(value));
                     setFilteredUsers(f); setShowDropdown(f.length > 0);
@@ -101,44 +107,114 @@
             const selectUser = (user) => {
                 const reg = registrations.find(r => r.name === user.name && r.email === user.email);
                 if (reg) {
-                    setFormData({ name: user.name, department: user.department, email: user.email, currentCourses: reg.course ? reg.course.split(',').map(c=>c.trim()) : [], currentWaitlist: reg.waitlist || '' });
+                    const courseList = reg.course ? reg.course.split(',').map(c=>c.trim()).filter(Boolean) : [];
+                    setFormData({ name: user.name, department: user.department, email: user.email, currentCourses: courseList, currentWaitlist: reg.waitlist || '' });
+                    setOriginalData({ courses: courseList, waitlist: reg.waitlist || '' });
                 } else {
                     alert('해당 사용자의 수강신청 내역이 없습니다.');
                     setFormData({ name: user.name, department: user.department, email: user.email, currentCourses: [], currentWaitlist: '' });
+                    setOriginalData({ courses: [], waitlist: '' });
                 }
+                setAddCourses([]); setAddWaitlist('');
                 setShowDropdown(false);
             };
 
-            const saveToSheet = async (updatedCourses, action) => {
+            // 과정 취소
+            const handleCancel = (courseName) => {
+                if (!confirm(`"${courseName}" 과정을 취소하시겠습니까?`)) return;
+                setFormData(prev => ({ ...prev, currentCourses: prev.currentCourses.filter(c => c !== courseName) }));
+            };
+
+            // 과정 변경 선택
+            const selectNewCourse = (newName) => {
+                setFormData(prev => ({ ...prev, currentCourses: prev.currentCourses.map(c => c === modifyingCourse ? newName : c) }));
+                setShowModifyModal(false); setModifyingCourse(null);
+            };
+
+            // 추가 신청 체크박스
+            const handleAddToggle = (courseName) => {
+                const base = n => n.replace(/\s*\d+차수/, '');
+                if (addCourses.includes(courseName)) {
+                    setAddCourses(prev => prev.filter(c => c !== courseName));
+                } else {
+                    const hasSame = addCourses.some(c => base(c) === base(courseName));
+                    if (hasSame) { alert(`이미 "${base(courseName)}" 과정의 다른 차수를 선택하셨습니다.`); return; }
+                    setAddCourses(prev => [...prev, courseName]);
+                }
+            };
+
+            // 변경 가능한 과정 (변경 모달용)
+            const getModifiableCourses = () => courses.filter(c => {
+                const isFull = getCount(c.id) >= c.capacity;
+                const isSelected = formData.currentCourses.includes(c.name);
+                const isModifying = c.name === modifyingCourse;
+                return !isFull && !isSelected || isModifying ? !isSelected && !isFull : false;
+            });
+
+            // 추가 신청 가능한 과정
+            const getAddableCourses = () => {
+                const base = n => n.replace(/\s*\d+차수/, '');
+                return courses.filter(c => {
+                    const isFull = getCount(c.id) >= c.capacity;
+                    const alreadyOwn = formData.currentCourses.includes(c.name);
+                    // 같은 과정명(차수 제외)이 이미 신청된 경우 제외
+                    const hasSameBase = formData.currentCourses.some(owned => base(owned) === base(c.name));
+                    return !isFull && !alreadyOwn && !hasSameBase;
+                });
+            };
+
+            // 마감된 과정 (대기 신청용)
+            const getFullCourses = () => courses.filter(c => getCount(c.id) >= c.capacity);
+
+            // 저장하기
+            const handleSave = async () => {
+                const finalCourses = [...formData.currentCourses, ...addCourses];
+                const finalWaitlist = addWaitlist || formData.currentWaitlist;
+
                 setLoading(true);
                 try {
-                    await fetch(GOOGLE_SCRIPT_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ action, name: formData.name, department: formData.department, email: formData.email, course: updatedCourses.join(', ') }) });
+                    await new Promise((resolve, reject) => {
+                        const cb = 'saveCb' + Date.now();
+                        const s = document.createElement('script');
+                        const params = new URLSearchParams({
+                            callback: cb,
+                            type: 'save',
+                            action: 'modify',
+                            email: formData.email,
+                            course: finalCourses.join(', '),
+                            waitlist: finalWaitlist,
+                            _: Date.now()
+                        });
+                        window[cb] = (data) => {
+                            document.body.removeChild(s); delete window[cb];
+                            data.success ? resolve() : reject(new Error(data.error));
+                        };
+                        s.src = `${GOOGLE_SCRIPT_URL}?${params}`;
+                        s.onerror = () => { document.body.removeChild(s); delete window[cb]; reject(new Error('네트워크 오류')); };
+                        document.body.appendChild(s);
+                    });
+
+                    // 저장 성공 후 상태 반영
+                    setFormData(prev => ({ ...prev, currentCourses: finalCourses, currentWaitlist: finalWaitlist }));
+                    setOriginalData({ courses: finalCourses, waitlist: finalWaitlist });
+                    setAddCourses([]); setAddWaitlist('');
+                    setShowSuccessModal(true);
                     setTimeout(loadData, 1000);
-                } catch(e) { alert('저장 중 오류가 발생했습니다. 다시 시도해주세요.'); }
-                finally { setLoading(false); }
+                } catch(err) {
+                    alert('저장 중 오류가 발생했습니다. 다시 시도해주세요.');
+                } finally {
+                    setLoading(false);
+                }
             };
 
-            const handleCancel = async (courseName) => {
-                if (!confirm(`"${courseName}" 과정을 취소하시겠습니까?`)) return;
-                const updated = formData.currentCourses.filter(c => c !== courseName);
-                setFormData({ ...formData, currentCourses: updated });
-                await saveToSheet(updated, 'cancel');
-                setSuccessMessage(`"${courseName}" 과정이 취소되었습니다.`);
-                setShowSuccessModal(true);
+            // 변경사항 있는지 체크
+            const hasChanges = () => {
+                const finalCourses = [...formData.currentCourses, ...addCourses];
+                const finalWaitlist = addWaitlist || formData.currentWaitlist;
+                const coursesChanged = JSON.stringify([...finalCourses].sort()) !== JSON.stringify([...originalData.courses].sort());
+                const waitlistChanged = finalWaitlist !== originalData.waitlist;
+                return coursesChanged || waitlistChanged;
             };
-
-            const selectNewCourse = async (newName) => {
-                const oldName = modifyingCourse;
-                const updated = formData.currentCourses.map(c => c === modifyingCourse ? newName : c);
-                setFormData({ ...formData, currentCourses: updated });
-                setShowModifyModal(false); setModifyingCourse(null);
-                await saveToSheet(updated, 'modify');
-                setSuccessMessage(`"${oldName}"이(가) "${newName}"(으)로 변경되었습니다.`);
-                setShowSuccessModal(true);
-            };
-
-            const getAvailable = () => courses.filter(c => getCount(c.id) < c.capacity && !formData.currentCourses.includes(c.name));
 
             const renderCalendar = () => {
                 const monthNames = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
@@ -146,37 +222,34 @@
                 const startDay = [3,6,6,2,4,0,2,5,1,3,6,1][currentMonth];
                 const holidays = ['2026-10-03','2026-10-09'];
                 const y = 2026, m = currentMonth + 1;
-                const calendar = [...Array(startDay).fill(null), ...Array.from({length: daysInMonth}, (_,i)=>i+1)];
-                const ds = (d) => `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-                const bgColor = (cnt, cap) => cnt >= cap ? 'bg-blue-600' : cnt >= cap-1 ? 'bg-blue-400' : 'bg-blue-200';
-
+                const calendar = [...Array(startDay).fill(null), ...Array.from({length:daysInMonth},(_,i)=>i+1)];
+                const ds = d => `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+                const bgColor = (cnt,cap) => cnt>=cap?'bg-blue-600':cnt>=cap-1?'bg-blue-400':'bg-blue-200';
                 return (
                     <div className="bg-white p-3 rounded-lg shadow-sm border border-gray-200">
                         <div className="flex items-center justify-between mb-2">
-                            <button onClick={() => currentMonth > 9 && setCurrentMonth(m => m-1)} disabled={currentMonth <= 9} className="p-1 rounded hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed">
+                            <button onClick={()=>currentMonth>9&&setCurrentMonth(m=>m-1)} disabled={currentMonth<=9} className="p-1 rounded hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 18 9 12 15 6"></polyline></svg>
                             </button>
-                            <h3 className="font-semibold text-base flex items-center gap-2"><Calendar />2026년 {monthNames[currentMonth]}</h3>
-                            <button onClick={() => currentMonth < 10 && setCurrentMonth(m => m+1)} disabled={currentMonth >= 10} className="p-1 rounded hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed">
+                            <h3 className="font-semibold text-base flex items-center gap-2"><CalendarIcon/>2026년 {monthNames[currentMonth]}</h3>
+                            <button onClick={()=>currentMonth<10&&setCurrentMonth(m=>m+1)} disabled={currentMonth>=10} className="p-1 rounded hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
                             </button>
                         </div>
                         <div className="grid grid-cols-7 gap-1">
-                            {['일','월','화','수','목','금','토'].map((d,i) => <div key={d} className={`text-center font-semibold text-xs p-1 bg-gray-50 ${i===0?'text-red-600':i===6?'text-blue-600':''}`}>{d}</div>)}
-                            {calendar.map((day, idx) => {
-                                const course = day ? courses.find(c => c.date === ds(day)) : null;
-                                const cnt = course ? getCount(course.id) : 0;
-                                const dow = day ? (startDay + day - 1) % 7 : null;
-                                const isRed = dow === 0 || (day && holidays.includes(ds(day)));
+                            {['일','월','화','수','목','금','토'].map((d,i)=><div key={d} className={`text-center font-semibold text-xs p-1 bg-gray-50 ${i===0?'text-red-600':i===6?'text-blue-600':''}`}>{d}</div>)}
+                            {calendar.map((day,idx)=>{
+                                const course=day?courses.find(c=>c.date===ds(day)):null;
+                                const cnt=course?getCount(course.id):0;
+                                const dow=day?(startDay+day-1)%7:null;
+                                const isRed=dow===0||(day&&holidays.includes(ds(day)));
                                 return (
                                     <div key={idx} className={`min-h-16 p-1 border border-gray-100 ${day?'bg-white':'bg-gray-50'}`}>
-                                        {day && <>
-                                            <div className={`text-xs font-semibold mb-1 ${isRed?'text-red-600':dow===6?'text-blue-600':''}`}>{day}</div>
-                                            {course && <div className="text-xs p-1 rounded">
-                                                <div className="font-medium truncate text-xs text-gray-900" title={course.name}>{course.name}</div>
-                                                <div className={`flex items-center gap-1 mt-1 px-2 py-0.5 rounded text-gray-700 ${bgColor(cnt, course.capacity)}`}><Users /><span className="text-xs">{cnt}/{course.capacity}</span></div>
-                                            </div>}
-                                        </>}
+                                        {day&&<><div className={`text-xs font-semibold mb-1 ${isRed?'text-red-600':dow===6?'text-blue-600':''}`}>{day}</div>
+                                        {course&&<div className="text-xs p-1 rounded">
+                                            <div className="font-medium truncate text-xs text-gray-900" title={course.name}>{course.name}</div>
+                                            <div className={`flex items-center gap-1 mt-1 px-2 py-0.5 rounded text-gray-700 ${bgColor(cnt,course.capacity)}`}><UsersIcon/><span className="text-xs">{cnt}/{course.capacity}</span></div>
+                                        </div>}</>}
                                     </div>
                                 );
                             })}
@@ -195,45 +268,80 @@
                             <span>💬 문의: #ask-training</span>
                         </div>
 
+                        {/* 완료 모달 */}
                         {showSuccessModal && (
-                            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={() => setShowSuccessModal(false)}>
+                            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={()=>setShowSuccessModal(false)}>
                                 <div className="bg-white rounded-lg shadow-xl p-8 max-w-md w-full" onClick={e=>e.stopPropagation()}>
                                     <div className="flex flex-col items-center text-center">
                                         <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
                                             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
                                         </div>
-                                        <h3 className="text-2xl font-bold text-gray-900 mb-2">완료!</h3>
-                                        <p className="text-gray-600 mb-6">{successMessage}</p>
-                                        <button onClick={() => setShowSuccessModal(false)} className="bg-blue-500 text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-600">확인</button>
+                                        <h3 className="text-2xl font-bold text-gray-900 mb-2">저장 완료!</h3>
+                                        <p className="text-gray-600 mb-6">변경사항이 저장되었습니다.</p>
+                                        <button onClick={()=>setShowSuccessModal(false)} className="bg-blue-500 text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-600">확인</button>
                                     </div>
                                 </div>
                             </div>
                         )}
 
+                        {/* 과정 변경 모달 */}
                         {showModifyModal && (
-                            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={() => setShowModifyModal(false)}>
+                            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={()=>setShowModifyModal(false)}>
                                 <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full" onClick={e=>e.stopPropagation()}>
                                     <h3 className="text-xl font-bold mb-4" style={{color:'#4E5FEE'}}>과정 변경</h3>
                                     <p className="text-sm text-gray-600 mb-4">변경할 과정을 선택하세요</p>
                                     <div className="space-y-2 max-h-96 overflow-y-auto">
-                                        {getAvailable().map(c => (
-                                            <button key={c.id} onClick={() => selectNewCourse(c.name)} className="w-full text-left p-3 border-2 border-gray-300 rounded-lg hover:bg-gray-50">
-                                                <div className="font-medium text-gray-900">{c.name}</div>
-                                                <div className="text-sm text-gray-600">{c.date}</div>
-                                            </button>
-                                        ))}
+                                        {getModifiableCourses().length === 0
+                                            ? <p className="text-center text-gray-500 py-4">변경 가능한 과정이 없습니다.</p>
+                                            : getModifiableCourses().map(c=>(
+                                                <button key={c.id} onClick={()=>selectNewCourse(c.name)} className="w-full text-left p-3 border-2 border-gray-300 rounded-lg hover:bg-gray-50">
+                                                    <div className="font-medium text-gray-900">{c.name}</div>
+                                                    <div className="text-sm text-gray-600">{c.date}</div>
+                                                </button>
+                                            ))
+                                        }
                                     </div>
-                                    <button onClick={() => setShowModifyModal(false)} className="w-full mt-4 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300">취소</button>
+                                    <button onClick={()=>setShowModifyModal(false)} className="w-full mt-4 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300">취소</button>
                                 </div>
                             </div>
                         )}
 
-                        {loading && (
-                            <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
-                                <div className="bg-white rounded-lg px-8 py-6 shadow-xl text-gray-700 font-medium">처리 중...</div>
+                        {/* 대기 신청 모달 */}
+                        {showWaitlistModal && (
+                            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={()=>setShowWaitlistModal(false)}>
+                                <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full" onClick={e=>e.stopPropagation()}>
+                                    <h3 className="text-xl font-bold mb-4" style={{color:'#4E5FEE'}}>⏳ 대기 신청</h3>
+                                    <p className="text-sm text-gray-600 mb-4">대기 신청할 과정을 선택하세요 (1개만 가능)</p>
+                                    <div className="space-y-2 max-h-96 overflow-y-auto">
+                                        {getFullCourses().length === 0
+                                            ? <p className="text-center text-gray-500 py-4">현재 마감된 과정이 없습니다.</p>
+                                            : getFullCourses().map(c=>(
+                                                <label key={c.id} className={`flex items-center gap-3 p-3 border-2 rounded-lg cursor-pointer ${addWaitlist===c.name?'border-blue-400 bg-blue-50':'border-gray-300 hover:bg-gray-50'}`}>
+                                                    <input type="radio" name="waitlist" checked={addWaitlist===c.name} onChange={()=>setAddWaitlist(c.name)} className="w-4 h-4"/>
+                                                    <div>
+                                                        <div className="font-medium text-gray-900">{c.name}</div>
+                                                        <div className="text-sm text-gray-600">{c.date}</div>
+                                                    </div>
+                                                </label>
+                                            ))
+                                        }
+                                    </div>
+                                    <div className="flex gap-2 mt-4">
+                                        {addWaitlist && <button onClick={()=>{setAddWaitlist('');}} className="flex-1 px-4 py-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 text-sm">선택 해제</button>}
+                                        <button onClick={()=>setShowWaitlistModal(false)} className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-semibold">확인</button>
+                                    </div>
+                                </div>
                             </div>
                         )}
 
+                        {/* 로딩 */}
+                        {loading && (
+                            <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
+                                <div className="bg-white rounded-lg px-8 py-6 shadow-xl text-gray-700 font-medium">저장 중...</div>
+                            </div>
+                        )}
+
+                        {/* 캘린더 */}
                         <div className="mb-6 flex gap-4">
                             <div className="w-36 flex-shrink-0">
                                 <div className="bg-white p-3 rounded-lg shadow-sm border border-gray-200 sticky top-6">
@@ -249,18 +357,19 @@
                         </div>
 
                         <div className="grid grid-cols-1 gap-6">
+                            {/* 기본 정보 */}
                             <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
                                 <h2 className="text-xl font-semibold mb-4" style={{color:'#4E5FEE'}}>📝 기본 정보</h2>
                                 <div className="space-y-4">
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">이름 <span className="text-red-500">*</span></label>
                                         <div className="relative">
-                                            <input type="text" value={formData.name} onChange={e=>handleNameInput(e.target.value)} onFocus={() => formData.name && setShowDropdown(filteredUsers.length > 0)}
-                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400" placeholder="이름을 입력하세요" autoComplete="off" />
+                                            <input type="text" value={formData.name} onChange={e=>handleNameInput(e.target.value)} onFocus={()=>formData.name&&setShowDropdown(filteredUsers.length>0)}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400" placeholder="이름을 입력하세요" autoComplete="off"/>
                                             {showDropdown && (
                                                 <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
-                                                    {filteredUsers.map((u, i) => (
-                                                        <div key={i} onClick={() => selectUser(u)} className="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0">
+                                                    {filteredUsers.map((u,i)=>(
+                                                        <div key={i} onClick={()=>selectUser(u)} className="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0">
                                                             <div className="font-medium text-gray-900">📋 {u.name}</div>
                                                             <div className="text-sm text-gray-600 mt-1">{u.department}</div>
                                                             <div className="text-sm text-gray-500">{u.email}</div>
@@ -272,25 +381,26 @@
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">소속</label>
-                                        <input type="text" value={formData.department} disabled className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50" />
+                                        <input type="text" value={formData.department} disabled className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50"/>
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">이메일</label>
-                                        <input type="email" value={formData.email} disabled className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50" />
+                                        <input type="email" value={formData.email} disabled className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50"/>
                                     </div>
                                 </div>
                             </div>
 
+                            {/* 현재 신청 과정 변경 */}
                             <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
-                                <h2 className="text-xl font-semibold mb-4" style={{color:'#4E5FEE'}}>📚 현재 신청 과정</h2>
+                                <h2 className="text-xl font-semibold mb-4" style={{color:'#4E5FEE'}}>📚 현재 신청 과정 변경</h2>
                                 {!formData.name ? (
                                     <p className="text-gray-400 text-center py-4">이름을 입력하면 신청 내역을 확인할 수 있습니다.</p>
                                 ) : formData.currentCourses.length === 0 ? (
                                     <p className="text-gray-600 text-center py-4">신청된 과정이 없습니다.</p>
                                 ) : (
                                     <div className="space-y-3">
-                                        {formData.currentCourses.map((name, i) => {
-                                            const c = courses.find(c => c.name === name);
+                                        {formData.currentCourses.map((name,i)=>{
+                                            const c = courses.find(c=>c.name===name);
                                             return (
                                                 <div key={i} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
                                                     <div>
@@ -298,8 +408,8 @@
                                                         <div className="text-sm text-gray-600">{c?.date}</div>
                                                     </div>
                                                     <div className="flex gap-2">
-                                                        <button onClick={() => { setModifyingCourse(name); setShowModifyModal(true); }} className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 text-sm font-medium">변경</button>
-                                                        <button onClick={() => handleCancel(name)} className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 text-sm font-medium">취소</button>
+                                                        <button onClick={()=>{setModifyingCourse(name);setShowModifyModal(true);}} className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 text-sm font-medium">변경</button>
+                                                        <button onClick={()=>handleCancel(name)} className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 text-sm font-medium">취소</button>
                                                     </div>
                                                 </div>
                                             );
@@ -307,6 +417,62 @@
                                     </div>
                                 )}
                             </div>
+
+                            {/* 추가 과정 신청 */}
+                            {formData.name && (
+                                <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
+                                    <h2 className="text-xl font-semibold mb-1" style={{color:'#4E5FEE'}}>➕ 추가 과정 신청</h2>
+                                    <p className="text-sm text-gray-600 mb-4">추가로 수강할 과정을 선택하세요 (복수 선택 가능)</p>
+                                    <div className="space-y-2">
+                                        {getAddableCourses().map(c=>{
+                                            const cnt = getCount(c.id);
+                                            const isSelected = addCourses.includes(c.name);
+                                            return (
+                                                <label key={c.id} className={`flex items-center justify-between p-3 border-2 rounded-lg cursor-pointer transition-colors ${isSelected?'border-blue-400 bg-blue-50':'border-gray-300 hover:bg-gray-50'}`}>
+                                                    <div className="flex items-center gap-3">
+                                                        <input type="checkbox" checked={isSelected} onChange={()=>handleAddToggle(c.name)} className="w-4 h-4"/>
+                                                        <div>
+                                                            <div className="font-medium text-gray-900">{c.name}</div>
+                                                            <div className="text-sm text-gray-600">{c.date}</div>
+                                                        </div>
+                                                    </div>
+                                                    <div className={`flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium ${cnt>=c.capacity?'bg-blue-600 text-white':cnt>=c.capacity-1?'bg-blue-400 text-white':'bg-blue-200 text-gray-900'}`}>
+                                                        <UsersIcon/><span>{cnt}/{c.capacity}</span>
+                                                    </div>
+                                                </label>
+                                            );
+                                        })}
+
+                                        {/* 대기 신청 항목 */}
+                                        <label className={`flex items-center justify-between p-3 border-2 rounded-lg cursor-pointer transition-colors ${addWaitlist?'border-blue-400 bg-blue-50':'border-gray-300 hover:bg-gray-50'}`}
+                                            onClick={()=>setShowWaitlistModal(true)}>
+                                            <div className="flex items-center gap-3">
+                                                <input type="checkbox" checked={!!addWaitlist} readOnly className="w-4 h-4"/>
+                                                <div>
+                                                    <div className="font-medium text-gray-900">⏳ 대기 신청</div>
+                                                    {addWaitlist
+                                                        ? <div className="text-sm text-blue-600 font-medium">{addWaitlist}</div>
+                                                        : <div className="text-sm text-gray-500">클릭하면 마감 과정에서 선택할 수 있어요</div>
+                                                    }
+                                                </div>
+                                            </div>
+                                        </label>
+
+                                        {getAddableCourses().length === 0 && !getFullCourses().length && (
+                                            <p className="text-center text-gray-500 py-4">추가 신청 가능한 과정이 없습니다.</p>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* 저장 버튼 */}
+                            {formData.name && (
+                                <button onClick={handleSave} disabled={loading || !hasChanges()}
+                                    className="w-full py-3 rounded-lg font-bold shadow-md transition-colors text-white disabled:cursor-not-allowed"
+                                    style={{backgroundColor: hasChanges() ? '#4E5FEE' : '#9ca3af'}}>
+                                    {loading ? '저장 중...' : '✓ 변경사항 저장하기'}
+                                </button>
+                            )}
                         </div>
                     </div>
                 </div>
